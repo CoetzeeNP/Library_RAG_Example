@@ -14,10 +14,13 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 VECTOR_STORE_ID = st.secrets["VECTOR_STORE_ID"]
 
 # ============================================
-# 🔹 SESSION STATE
+# 🔹 SESSION STATE INIT
 # ============================================
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "rag_enabled" not in st.session_state:
+    st.session_state.rag_enabled = True
 
 # ============================================
 # 🔹 SIDEBAR
@@ -25,17 +28,30 @@ if "messages" not in st.session_state:
 with st.sidebar:
     st.title("⚙️ Settings")
 
-    rag_enabled = st.toggle("Enable RAG (File Search)", value=True)
+    rag_toggle = st.toggle("Enable RAG (File Search)", value=st.session_state.rag_enabled)
+
+    # 🔥 Reset chat if toggle changes (IMPORTANT)
+    if rag_toggle != st.session_state.rag_enabled:
+        st.session_state.rag_enabled = rag_toggle
+        st.session_state.messages = []
+        st.rerun()
 
     if st.button("🧹 Clear Chat"):
         st.session_state.messages = []
         st.rerun()
 
+    st.markdown("---")
+    st.markdown("### 🧠 Mode")
+    st.markdown(
+        "📚 **RAG Enabled**" if st.session_state.rag_enabled
+        else "💬 **Standard Chat (No RAG)**"
+    )
+
 # ============================================
 # 🔹 MAIN UI
 # ============================================
-st.title("🤖 RAG Chatbot (Responses API)")
-st.caption("Ask questions about your knowledge base")
+st.title("🤖 RAG Chatbot")
+st.caption("Demonstrating Retrieval-Augmented Generation")
 
 # Display chat history
 for msg in st.session_state.messages:
@@ -64,53 +80,76 @@ if prompt := st.chat_input("Ask something..."):
         full_response = ""
 
         try:
-            # Build message history
+            # ====================================
+            # 🔹 BUILD MESSAGE HISTORY
+            # ====================================
             messages = [
                 {"role": m["role"], "content": m["content"]}
                 for m in st.session_state.messages
             ]
 
-            # Optional system instruction (helps RAG quality)
+            # ====================================
+            # 🔹 DYNAMIC SYSTEM PROMPT
+            # ====================================
+            if st.session_state.rag_enabled:
+                system_prompt = (
+                    "Answer using ONLY the knowledge base. "
+                    "If the answer is not found, say you don't know."
+                )
+            else:
+                system_prompt = (
+                    "You are a helpful AI assistant. "
+                    "Answer normally without using external documents."
+                )
+
             messages.insert(0, {
                 "role": "system",
-                "content": "Answer using the knowledge base. If unsure, say you don't know."
+                "content": system_prompt
             })
 
-            # ✅ Always use a list for tools
-            tools = [{
-                "type": "file_search",
-                "vector_store_ids": [VECTOR_STORE_ID],
-            }] if rag_enabled else []
+            # ====================================
+            # 🔹 BUILD REQUEST
+            # ====================================
+            request_params = {
+                "model": "gpt-4.1",
+                "input": messages,
+            }
 
-            # ✅ Correct streaming usage
-            with client.responses.stream(
-                model="gpt-4.1",
-                input=messages,
-                tools=tools,
-            ) as stream:
+            # ✅ Only include RAG when enabled
+            if st.session_state.rag_enabled:
+                request_params["tools"] = [{
+                    "type": "file_search",
+                    "vector_store_ids": [VECTOR_STORE_ID],
+                }]
+
+            # ====================================
+            # 🔹 STREAM RESPONSE (CORRECT)
+            # ====================================
+            with client.responses.stream(**request_params) as stream:
 
                 for event in stream:
                     if event.type == "response.output_text.delta":
                         full_response += event.delta
                         placeholder.markdown(full_response + "▌")
 
-                # ✅ Get final response safely
+                # Get final response safely
                 final_response = stream.get_final_response()
 
             # ====================================
-            # 🔹 OPTIONAL: Extract citations safely
+            # 🔹 OPTIONAL: CITATIONS
             # ====================================
-            try:
-                annotations = final_response.output[0].content[0].annotations
+            if st.session_state.rag_enabled:
+                try:
+                    annotations = final_response.output[0].content[0].annotations
 
-                if annotations:
-                    full_response += "\n\n---\n📄 **Sources:**\n"
-                    for ann in annotations:
-                        if hasattr(ann, "file_citation"):
-                            file_id = ann.file_citation.file_id
-                            full_response += f"- `{file_id}`\n"
-            except Exception:
-                pass
+                    if annotations:
+                        full_response += "\n\n---\n📄 **Sources:**\n"
+                        for ann in annotations:
+                            if hasattr(ann, "file_citation"):
+                                file_id = ann.file_citation.file_id
+                                full_response += f"- `{file_id}`\n"
+                except Exception:
+                    pass
 
             # Final render
             placeholder.markdown(full_response)
@@ -119,7 +158,7 @@ if prompt := st.chat_input("Ask something..."):
             full_response = f"❌ Error: {str(e)}"
             placeholder.markdown(full_response)
 
-        # Save assistant response
+        # Save assistant message
         st.session_state.messages.append({
             "role": "assistant",
             "content": full_response
