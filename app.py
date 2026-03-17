@@ -70,38 +70,50 @@ if prompt := st.chat_input("Ask something..."):
                 for m in st.session_state.messages
             ]
 
-            # Create streaming request
+            # Optional system instruction (helps RAG quality)
+            messages.insert(0, {
+                "role": "system",
+                "content": "Answer using the knowledge base. If unsure, say you don't know."
+            })
+
+            # ✅ Always use a list for tools
+            tools = [{
+                "type": "file_search",
+                "vector_store_ids": [VECTOR_STORE_ID],
+            }] if rag_enabled else []
+
+            # ✅ Correct streaming usage
             with client.responses.stream(
-                model="gpt-4.1",  # or gpt-4o / gpt-5
+                model="gpt-4.1",
                 input=messages,
-                tools=[{
-                    "type": "file_search",
-                    "vector_store_ids": [VECTOR_STORE_ID],
-                }] if rag_enabled else None,
+                tools=tools,
             ) as stream:
 
-                citations = set()
-
                 for event in stream:
-
-                    # ✅ Stream text output
                     if event.type == "response.output_text.delta":
                         full_response += event.delta
                         placeholder.markdown(full_response + "▌")
 
-                    # ✅ Capture RAG citations
-                    elif event.type == "response.file_search_call.completed":
-                        for result in event.output:
-                            citations.add(result["file_id"])
+                # ✅ Get final response safely
+                final_response = stream.get_final_response()
 
-                # Add citations at the end
-                if citations:
+            # ====================================
+            # 🔹 OPTIONAL: Extract citations safely
+            # ====================================
+            try:
+                annotations = final_response.output[0].content[0].annotations
+
+                if annotations:
                     full_response += "\n\n---\n📄 **Sources:**\n"
-                    for c in citations:
-                        full_response += f"- `{c}`\n"
+                    for ann in annotations:
+                        if hasattr(ann, "file_citation"):
+                            file_id = ann.file_citation.file_id
+                            full_response += f"- `{file_id}`\n"
+            except Exception:
+                pass
 
-                # Final render
-                placeholder.markdown(full_response)
+            # Final render
+            placeholder.markdown(full_response)
 
         except Exception as e:
             full_response = f"❌ Error: {str(e)}"
