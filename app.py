@@ -2,13 +2,15 @@ import streamlit as st
 from openai import OpenAI
 
 # ============================================
-# 🔹 CONFIG
+# 🔹 CONFIGURATION
 # ============================================
-st.set_page_config(page_title="RAG Chatbot (Responses API)", layout="centered")
+st.set_page_config(
+    page_title="RAG Chatbot",
+    page_icon="🤖",
+    layout="centered"
+)
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-# IMPORTANT: Your vector store ID (from OpenAI dashboard)
 VECTOR_STORE_ID = st.secrets["VECTOR_STORE_ID"]
 
 # ============================================
@@ -33,9 +35,9 @@ with st.sidebar:
 # 🔹 MAIN UI
 # ============================================
 st.title("🤖 RAG Chatbot (Responses API)")
-st.caption("Powered by File Search (Vector Store)")
+st.caption("Ask questions about your knowledge base")
 
-# Display history
+# Display chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -45,56 +47,67 @@ for msg in st.session_state.messages:
 # ============================================
 if prompt := st.chat_input("Ask something..."):
 
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Save user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt
+    })
 
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    # ============================================
+    # 🔹 ASSISTANT RESPONSE
+    # ============================================
     with st.chat_message("assistant"):
         placeholder = st.empty()
         full_response = ""
 
         try:
-            # ====================================
-            # 🔹 BUILD INPUT
-            # ====================================
+            # Build message history
             messages = [
                 {"role": m["role"], "content": m["content"]}
                 for m in st.session_state.messages
             ]
 
-            # ====================================
-            # 🔹 RAG MODE (File Search)
-            # ====================================
-            if rag_enabled:
-                stream = client.responses.stream(
-                    model="gpt-4.1",  # or gpt-4o / gpt-5
-                    input=messages,
-                    tools=[{
-                        "type": "file_search",
-                        "vector_store_ids": [VECTOR_STORE_ID],
-                    }],
-                )
-            else:
-                stream = client.responses.stream(
-                    model="gpt-4.1",
-                    input=messages,
-                )
+            # Create streaming request
+            with client.responses.stream(
+                model="gpt-4.1",  # or gpt-4o / gpt-5
+                input=messages,
+                tools=[{
+                    "type": "file_search",
+                    "vector_store_ids": [VECTOR_STORE_ID],
+                }] if rag_enabled else None,
+            ) as stream:
 
-            # ====================================
-            # 🔹 STREAM RESPONSE
-            # ====================================
-            for event in stream:
-                if event.type == "response.output_text.delta":
-                    full_response += event.delta
-                    placeholder.markdown(full_response + "▌")
+                citations = set()
 
-            placeholder.markdown(full_response)
+                for event in stream:
+
+                    # ✅ Stream text output
+                    if event.type == "response.output_text.delta":
+                        full_response += event.delta
+                        placeholder.markdown(full_response + "▌")
+
+                    # ✅ Capture RAG citations
+                    elif event.type == "response.file_search_call.completed":
+                        for result in event.output:
+                            citations.add(result["file_id"])
+
+                # Add citations at the end
+                if citations:
+                    full_response += "\n\n---\n📄 **Sources:**\n"
+                    for c in citations:
+                        full_response += f"- `{c}`\n"
+
+                # Final render
+                placeholder.markdown(full_response)
 
         except Exception as e:
             full_response = f"❌ Error: {str(e)}"
             placeholder.markdown(full_response)
 
+        # Save assistant response
         st.session_state.messages.append({
             "role": "assistant",
             "content": full_response
