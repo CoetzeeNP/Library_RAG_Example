@@ -59,6 +59,7 @@ if prompt := st.chat_input("Ask something..."):
     st.markdown(
         "📚 **RAG Enabled**" if st.session_state.rag_enabled
         else "💬 **Standard Chat (No RAG)**"
+    )
     # Save user message
     st.session_state.messages.append({
         "role": "user",
