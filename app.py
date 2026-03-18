@@ -8,6 +8,7 @@ st.set_page_config(
     page_title="RAG Chatbot",
     layout="centered"
 )
+st.image("combined_logo.jpg")
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 VECTOR_STORE_ID = st.secrets["VECTOR_STORE_ID"]
