@@ -38,7 +38,6 @@ with st.sidebar:
     if st.button("🧹 Clear Chat"):
         st.session_state.messages = []
         st.rerun()
-    )
 
 # ============================================
 # 🔹 MAIN UI
