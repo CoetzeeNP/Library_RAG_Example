@@ -44,7 +44,7 @@ with st.sidebar:
 # ============================================
 # 🔹 MAIN UI
 # ============================================
-st.image("combined_logo.jpg")
+st.image("combined_logo.jpg", use_container_width=True)
 st.title("RAG Chatbot")
 st.caption("Demonstrating Retrieval-Augmented Generation")
 
