@@ -15,7 +15,7 @@ VECTOR_STORE_ID = st.secrets["VECTOR_STORE_ID"]
 # ============================================
 # 🔹 SESSION STATE INIT
 # ============================================
-st.image("icdf.png")
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -26,6 +26,7 @@ if "rag_enabled" not in st.session_state:
 # 🔹 SIDEBAR
 # ============================================
 with st.sidebar:
+    st.image("icdf.png")
     st.title("⚙️ Settings")
 
     rag_toggle = st.toggle("Enable RAG (File Search)", value=st.session_state.rag_enabled)
