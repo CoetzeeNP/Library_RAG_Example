@@ -8,7 +8,6 @@ st.set_page_config(
     page_title="RAG Chatbot",
     layout="centered"
 )
-st.image("combined_logo.jpg")
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 VECTOR_STORE_ID = st.secrets["VECTOR_STORE_ID"]
@@ -45,6 +44,7 @@ with st.sidebar:
 # ============================================
 # 🔹 MAIN UI
 # ============================================
+st.image("combined_logo.jpg")
 st.title("RAG Chatbot")
 st.caption("Demonstrating Retrieval-Augmented Generation")
 
@@ -61,8 +61,8 @@ if prompt := st.chat_input("Ask something..."):
     st.markdown("### Mode")
     st.markdown(
         "📚 **RAG Enabled**" if st.session_state.rag_enabled
-        else "💬 **Standard Chat (No RAG)**"
-    )
+        else "💬 **Standard Chat (No RAG)**")
+    
     # Save user message
     st.session_state.messages.append({
         "role": "user",
