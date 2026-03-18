@@ -15,6 +15,7 @@ VECTOR_STORE_ID = st.secrets["VECTOR_STORE_ID"]
 # ============================================
 # 🔹 SESSION STATE INIT
 # ============================================
+st.image("icdf.png")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
