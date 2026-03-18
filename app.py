@@ -6,7 +6,6 @@ from openai import OpenAI
 # ============================================
 st.set_page_config(
     page_title="RAG Chatbot",
-    page_icon="🤖",
     layout="centered"
 )
 
@@ -39,12 +38,6 @@ with st.sidebar:
     if st.button("🧹 Clear Chat"):
         st.session_state.messages = []
         st.rerun()
-
-    st.markdown("---")
-    st.markdown("### 🧠 Mode")
-    st.markdown(
-        "📚 **RAG Enabled**" if st.session_state.rag_enabled
-        else "💬 **Standard Chat (No RAG)**"
     )
 
 # ============================================
@@ -62,7 +55,11 @@ for msg in st.session_state.messages:
 # 🔹 USER INPUT
 # ============================================
 if prompt := st.chat_input("Ask something..."):
-
+    st.markdown("---")
+    st.markdown("### 🧠 Mode")
+    st.markdown(
+        "📚 **RAG Enabled**" if st.session_state.rag_enabled
+        else "💬 **Standard Chat (No RAG)**"
     # Save user message
     st.session_state.messages.append({
         "role": "user",
