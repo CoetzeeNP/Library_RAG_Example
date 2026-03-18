@@ -42,7 +42,7 @@ with st.sidebar:
 # ============================================
 # 🔹 MAIN UI
 # ============================================
-st.title("🤖 RAG Chatbot")
+st.title("RAG Chatbot")
 st.caption("Demonstrating Retrieval-Augmented Generation")
 
 # Display chat history
@@ -55,7 +55,7 @@ for msg in st.session_state.messages:
 # ============================================
 if prompt := st.chat_input("Ask something..."):
     st.markdown("---")
-    st.markdown("### 🧠 Mode")
+    st.markdown("### Mode")
     st.markdown(
         "📚 **RAG Enabled**" if st.session_state.rag_enabled
         else "💬 **Standard Chat (No RAG)**"
